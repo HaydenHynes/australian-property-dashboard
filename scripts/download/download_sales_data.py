@@ -6,13 +6,13 @@ Download NSW property sales data.
 Author: Hayden Hynes
 """
 
-from pathlib import Path
 
 def main() -> None:
-  """Entry point for the download script."""
-  
-  print("Australian Property Intelligence Platform")
-  print("Download NSW Property Sales Data")
-  
+    """Entry point for the download script."""
+
+    print("Australian Property Intelligence Platform")
+    print("Download NSW Property Sales Data")
+
+
 if __name__ == "__main__":
-  main()
+    main()
