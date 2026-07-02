@@ -5,6 +5,12 @@ Provides reusable analytics queries for property sales data.
 """
 
 from backend.database.connection import Database
+from backend.models.analytics import (
+    AveragePriceByLocality,
+    PropertyTypeSales,
+    SalesByLocality,
+    TopSale,
+)
 
 GET_TOTAL_SALES_SQL = """
 SELECT COUNT(*)
@@ -68,39 +74,42 @@ class AnalyticsService:
 
         return result[0]
     
-    def get_top_sales(self, limit: int = 20) -> list[dict[str, object]]:
+    def get_top_sales(self, limit: int = 20) -> list[TopSale]:
       """Return the highest property sales by purchase price."""
       with self._db.connection() as conn:
-          rows = conn.execute(GET_TOP_SALES_SQL, {"limit": limit}).fetchall()
+          rows = conn.execute(
+              GET_TOP_SALES_SQL,
+              {"limit": limit},
+          ).fetchall()
 
       return [
-          {
-              "locality": row[0],
-              "street_name": row[1],
-              "house_number": row[2],
-              "purchase_price": row[3],
-              "contract_date": row[4],
-          }
+          TopSale(
+              locality=row[0],
+              street_name=row[1],
+              house_number=row[2],
+              purchase_price=row[3],
+              contract_date=row[4],
+          )
           for row in rows
       ]
     
-    def get_sales_by_locality(self, limit: int = 20) -> list[dict[str, object]]:
+    def get_sales_by_locality(self, limit: int = 20) -> list[SalesByLocality]:
       """Return sales counts grouped by locality."""
       with self._db.connection() as conn:
           rows = conn.execute(GET_SALES_BY_LOCALITY_SQL, {"limit": limit}).fetchall()
 
       return [
-          {
-              "locality": row[0],
-              "sales_count": row[1],
-          }
+          SalesByLocality(
+              locality=row[0],
+              sales_count=row[1],
+          )
           for row in rows
       ]
     
     def get_average_price_by_locality(
       self,
       limit: int = 20,
-    ) -> list[dict[str, object]]:
+    ) -> list[AveragePriceByLocality]:
         """Return average purchase price grouped by locality."""
         with self._db.connection() as conn:
             rows = conn.execute(
@@ -109,22 +118,22 @@ class AnalyticsService:
             ).fetchall()
 
         return [
-            {
-                "locality": row[0],
-                "average_purchase_price": row[1],
-            }
+            AveragePriceByLocality(
+                locality=row[0],
+                average_purchase_price=row[1],
+            )
             for row in rows
         ]
       
-    def get_sales_by_property_type(self) -> list[dict[str, object]]:
+    def get_sales_by_property_type(self) -> list[PropertyTypeSales]:
       """Return sales counts grouped by property type."""
       with self._db.connection() as conn:
           rows = conn.execute(GET_SALES_BY_PROPERTY_TYPE_SQL).fetchall()
 
       return [
-          {
-              "property_type": row[0],
-              "sales_count": row[1],
-          }
+          PropertyTypeSales(
+              property_type=row[0],
+              sales_count=row[1],
+          )
           for row in rows
       ]
