@@ -60,6 +60,24 @@ GROUP BY nature_of_property
 ORDER BY sales_count DESC;
 """
 
+GET_HIGHEST_SALE_PRICE_SQL = """
+SELECT MAX(purchase_price)
+FROM property_sales
+WHERE purchase_price IS NOT NULL;
+"""
+
+GET_LOCALITY_COUNT_SQL = """
+SELECT COUNT(DISTINCT property_locality)
+FROM property_sales
+WHERE property_locality IS NOT NULL;
+"""
+
+GET_AVERAGE_SALE_PRICE_SQL = """
+SELECT ROUND(AVG(purchase_price), 2)
+FROM property_sales
+WHERE purchase_price IS NOT NULL;
+"""
+
 class AnalyticsService:
     """Provides analytics queries over property sales."""
 
@@ -137,3 +155,26 @@ class AnalyticsService:
           )
           for row in rows
       ]
+      
+    def get_highest_sale_price(self) -> int | None:
+        """Return the highest sale price."""
+        with self._db.connection() as conn:
+            result = conn.execute(GET_HIGHEST_SALE_PRICE_SQL).fetchone()
+
+        return result[0]
+
+
+    def get_locality_count(self) -> int:
+        """Return the number of distinct localities."""
+        with self._db.connection() as conn:
+            result = conn.execute(GET_LOCALITY_COUNT_SQL).fetchone()
+
+        return result[0]
+
+
+    def get_average_sale_price(self):
+        """Return the average sale price."""
+        with self._db.connection() as conn:
+            result = conn.execute(GET_AVERAGE_SALE_PRICE_SQL).fetchone()
+
+        return result[0]
