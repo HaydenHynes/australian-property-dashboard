@@ -23,3 +23,15 @@ __pycache__/
 
 # Logs
 *.log
+
+# Raw datasets
+data/raw/*
+!data/raw/.gitkeep
+
+# Processed datasets
+data/processed/*
+!data/processed/.gitkeep
+
+# Exported reports
+data/exports/*
+!data/exports/.gitkeep
