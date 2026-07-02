@@ -12,6 +12,12 @@ import requests
 REQUEST_TIMEOUT_SECONDS = 30
 CHUNK_SIZE_BYTES = 8192
 
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+    )
+}
 
 def validate_url(url: str) -> None:
     """Validate that a URL has a supported HTTP or HTTPS scheme."""
@@ -47,7 +53,12 @@ def download_file(
           "Pass overwrite=True to replace it."
       )
 
-    with requests.get(url, timeout=REQUEST_TIMEOUT_SECONDS, stream=True) as response:
+    with requests.get(
+    url,
+    timeout=REQUEST_TIMEOUT_SECONDS,
+    stream=True,
+    headers=REQUEST_HEADERS,
+) as response:
       response.raise_for_status()
 
       with destination_path.open("wb") as file:
