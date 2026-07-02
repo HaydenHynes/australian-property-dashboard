@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./App.css";
 import { getDashboardSummary } from "./api/dashboard";
 import type { DashboardSummary } from "./types/dashboard";
 
@@ -15,32 +16,41 @@ function App() {
   }, []);
 
   if (error) {
-    return <p>{error}</p>;
+    return <p className="status-message">{error}</p>;
   }
 
   if (!summary) {
-    return <p>Loading dashboard...</p>;
+    return <p className="status-message">Loading dashboard...</p>;
   }
 
   return (
-    <main>
-      <h1>Australian Property Dashboard</h1>
+    <main className="dashboard-page">
+      <section className="hero">
+        <p className="eyebrow">Australian Property Intelligence</p>
+        <h1>Property Market Dashboard</h1>
+        <p className="hero-description">
+          NSW property sales data processed from Valuer General source files.
+        </p>
+      </section>
 
-      <section>
-        <div>
-          <h2>Total Sales</h2>
-          <p>{summary.total_sales}</p>
-        </div>
+      <section className="summary-grid">
+        <article className="summary-card">
+          <p className="card-label">Total Sales</p>
+          <h2>{summary.total_sales.toLocaleString()}</h2>
+          <p className="card-caption">Loaded property sale records</p>
+        </article>
 
-        <div>
-          <h2>Highest Sale</h2>
-          <p>${summary.highest_sale_price?.toLocaleString()}</p>
-        </div>
+        <article className="summary-card">
+          <p className="card-label">Highest Sale</p>
+          <h2>${summary.highest_sale_price?.toLocaleString()}</h2>
+          <p className="card-caption">Highest purchase price</p>
+        </article>
 
-        <div>
-          <h2>Localities</h2>
-          <p>{summary.locality_count}</p>
-        </div>
+        <article className="summary-card">
+          <p className="card-label">Localities</p>
+          <h2>{summary.locality_count.toLocaleString()}</h2>
+          <p className="card-caption">Distinct NSW localities</p>
+        </article>
       </section>
     </main>
   );
