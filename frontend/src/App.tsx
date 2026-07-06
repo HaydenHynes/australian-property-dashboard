@@ -24,24 +24,24 @@ function App() {
   const [topSalesLimit, setTopSalesLimit] = useState(10);
 
   useEffect(() => {
-  async function loadChartsData() {
-    try {
-      const [salesByLocalityData, propertyTypeSalesData] =
-        await Promise.all([
-          getSalesByLocality(10),
-          getSalesByPropertyType(),
-        ]);
+    async function loadChartsData() {
+      try {
+        const [salesByLocalityData, propertyTypeSalesData] =
+          await Promise.all([
+            getSalesByLocality(10, searchTerm),
+            getSalesByPropertyType(searchTerm),
+          ]);
 
-      setSalesByLocality(salesByLocalityData);
-      setPropertyTypeSales(propertyTypeSalesData);
-    } catch (error) {
-      console.error(error);
-      setError("Failed to load chart data.");
+        setSalesByLocality(salesByLocalityData);
+        setPropertyTypeSales(propertyTypeSalesData);
+      } catch (error) {
+        console.error(error);
+        setError("Failed to load chart data.");
+      }
     }
-  }
 
-  loadChartsData();
-}, []);
+    loadChartsData();
+  }, [searchTerm]);
 
 useEffect(() => {
   async function loadSummaryData() {
