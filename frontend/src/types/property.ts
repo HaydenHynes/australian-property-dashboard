@@ -10,3 +10,8 @@ export interface SalesByLocality {
   locality: string | null;
   sales_count: number;
 }
+
+export interface PropertyTypeSales {
+  property_type: string | null;
+  sales_count: number;
+}

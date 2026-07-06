@@ -1,9 +1,16 @@
 import { apiClient } from "./client";
-import type { SalesByLocality, TopSale } from "../types/property";
+import type { PropertyTypeSales, SalesByLocality, TopSale } from "../types/property";
 
-export async function getTopSales(limit = 10): Promise<TopSale[]> {
+
+export async function getTopSales(
+  limit = 10,
+  search = "",
+): Promise<TopSale[]> {
   const response = await apiClient.get<TopSale[]>("/analytics/top-sales", {
-    params: { limit },
+    params: {
+      limit,
+      search,
+    },
   });
 
   return response.data;
@@ -17,6 +24,14 @@ export async function getSalesByLocality(
     {
       params: { limit },
     },
+  );
+
+  return response.data;
+}
+
+export async function getSalesByPropertyType(): Promise<PropertyTypeSales[]> {
+  const response = await apiClient.get<PropertyTypeSales[]>(
+    "/analytics/sales-by-property-type",
   );
 
   return response.data;

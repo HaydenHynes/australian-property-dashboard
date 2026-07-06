@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -9,15 +11,23 @@ interface SummaryCardProps {
   title: string;
   value: string;
   caption: string;
+  icon: LucideIcon;
 }
 
-export function SummaryCard({ title, value, caption }: SummaryCardProps) {
+export function SummaryCard({
+  title,
+  value,
+  caption,
+  icon: Icon,
+}: SummaryCardProps) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
+
+        <Icon className="h-5 w-5 text-sky-400" />
       </CardHeader>
 
       <CardContent>

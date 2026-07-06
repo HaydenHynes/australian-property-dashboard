@@ -1,4 +1,5 @@
 import type { TopSale } from "../../types/property";
+import { formatCurrency, formatDate } from "../../lib/formatters";
 
 interface TopSalesTableProps {
   sales: TopSale[];
@@ -13,12 +14,12 @@ export function TopSalesTable({ sales }: TopSalesTableProps) {
 
       <div className="overflow-hidden rounded-xl border border-slate-700">
         <table className="w-full border-collapse">
-          <thead className="bg-slate-800">
+          <thead className="bg-slate-800 text-slate-200">
             <tr>
-              <th className="p-4 text-left">Locality</th>
-              <th className="p-4 text-left">Address</th>
-              <th className="p-4 text-right">Sale Price</th>
-              <th className="p-4 text-left">Contract Date</th>
+              <th className="p-4 text-left font-semibold tracking-wide uppercase text-sm">Locality</th>
+              <th className="p-4 text-left font-semibold tracking-wide uppercase text-sm">Address</th>
+              <th className="p-4 text-left font-semibold tracking-wide uppercase text-sm">Sale Price</th>
+              <th className="p-4 text-left font-semibold tracking-wide uppercase text-sm">Contract Date</th>
             </tr>
           </thead>
 
@@ -26,7 +27,14 @@ export function TopSalesTable({ sales }: TopSalesTableProps) {
             {sales.map((sale) => (
               <tr
                 key={`${sale.locality}-${sale.street_name}-${sale.house_number}`}
-                className="border-t border-slate-700"
+                className="
+                  border-t
+                  border-slate-700
+                  odd:bg-slate-900
+                  even:bg-slate-950
+                  hover:bg-sky-900/30
+                  transition-colors
+                "
               >
                 <td className="p-4">{sale.locality}</td>
 
@@ -35,11 +43,11 @@ export function TopSalesTable({ sales }: TopSalesTableProps) {
                 </td>
 
                 <td className="p-4 text-right">
-                  ${sale.purchase_price?.toLocaleString()}
+                  {formatCurrency(sale.purchase_price)}
                 </td>
 
                 <td className="p-4">
-                  {sale.contract_date}
+                  {formatDate(sale.contract_date)}
                 </td>
               </tr>
             ))}
