@@ -31,13 +31,18 @@ function App() {
 
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
 
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingCharts, setLoadingCharts] = useState(true);
+  const [loadingTopSales, setLoadingTopSales] = useState(true);
+  const [contractYear, setContractYear] = useState("");
+
   useEffect(() => {
     async function loadChartsData() {
       try {
         const [salesByLocalityData, propertyTypeSalesData] =
           await Promise.all([
-            getSalesByLocality(10, debouncedSearchTerm, propertyType),
-            getSalesByPropertyType(debouncedSearchTerm, propertyType),
+            getSalesByLocality(10, debouncedSearchTerm, propertyType, contractYear,),
+            getSalesByPropertyType(debouncedSearchTerm, propertyType, contractYear,),
           ]);
 
         setSalesByLocality(salesByLocalityData);
@@ -45,11 +50,13 @@ function App() {
       } catch (error) {
         console.error(error);
         setError("Failed to load chart data.");
+      } finally {
+        setLoadingCharts(false);
       }
     }
 
     loadChartsData();
-  }, [debouncedSearchTerm, propertyType]);
+  }, [debouncedSearchTerm, propertyType, contractYear]);
 
   useEffect(() => {
     async function loadSummaryData() {
@@ -57,51 +64,52 @@ function App() {
         const summaryData = await getDashboardSummary(
           debouncedSearchTerm,
           propertyType,
+          contractYear,
         );
+
         setSummary(summaryData);
       } catch (error) {
         console.error(error);
         setError("Failed to load dashboard summary.");
+      } finally {
+        setLoadingSummary(false);
       }
     }
 
     loadSummaryData();
-  }, [debouncedSearchTerm, propertyType]);
+  }, [debouncedSearchTerm, propertyType, contractYear]);
 
   useEffect(() => {
-  async function loadTopSales() {
-    try {
-      const topSalesData = await getTopSales(
-        topSalesLimit,
-        debouncedSearchTerm,
-        propertyType,
-      );
+    async function loadTopSales() {
+      try {
+        const topSalesData = await getTopSales(
+          topSalesLimit,
+          debouncedSearchTerm,
+          propertyType,
+          contractYear,
+        );
 
-      console.log("Top sales returned:", topSalesData);
-
-      setTopSales(topSalesData);
-    } catch (error) {
-      console.error(error);
-      setError("Failed to load top sales.");
+        setTopSales(topSalesData);
+      } catch (error) {
+        console.error(error);
+        setError("Failed to load top sales.");
+      } finally {
+        setLoadingTopSales(false);
+      }
     }
-  }
 
-  loadTopSales();
-}, [topSalesLimit, debouncedSearchTerm, propertyType]);
+    loadTopSales();
+  }, [topSalesLimit, debouncedSearchTerm, propertyType, contractYear]);
 
   if (error) {
     return <p className="status-message">{error}</p>;
-  }
-
-  if (!summary) {
-    return <p className="status-message">Loading dashboard...</p>;
   }
 
   return (
     <main className="dashboard-page">
       <DashboardHeader />
 
-      <SummarySection summary={summary} />
+      <SummarySection summary={summary} loading={loadingSummary} />
 
       <DashboardToolbar
         searchTerm={searchTerm}
@@ -110,14 +118,17 @@ function App() {
         onTopSalesLimitChange={setTopSalesLimit}
         propertyType={propertyType}
         onPropertyTypeChange={setPropertyType}
+        contractYear={contractYear}
+        onContractYearChange={setContractYear}
       />
 
       <ChartsSection
         salesByLocality={salesByLocality}
         propertyTypeSales={propertyTypeSales}
+        loading={loadingCharts}
       />
 
-      <TopSalesTable sales={topSales} />
+      <TopSalesTable sales={topSales} loading={loadingTopSales} />
     </main>
   );
 }

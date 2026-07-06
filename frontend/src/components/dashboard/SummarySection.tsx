@@ -5,10 +5,24 @@ import type { DashboardSummary } from "../../types/dashboard";
 import { SummaryCard } from "./SummaryCard";
 
 interface SummarySectionProps {
-  summary: DashboardSummary;
+  summary: DashboardSummary | null;
+  loading: boolean;
 }
 
-export function SummarySection({ summary }: SummarySectionProps) {
+export function SummarySection({ summary, loading }: SummarySectionProps) {
+  if (loading || !summary) {
+    return (
+      <section className="summary-grid">
+        {[1, 2, 3].map((item) => (
+          <div
+            key={item}
+            className="h-36 animate-pulse rounded-xl border border-slate-700 bg-slate-900"
+          />
+        ))}
+      </section>
+    );
+  }
+
   return (
     <section className="summary-grid">
       <SummaryCard
