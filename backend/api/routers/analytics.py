@@ -34,10 +34,15 @@ def total_sales(
 def top_sales(
     limit: int = 20,
     search: str | None = None,
+    property_type: str | None = None,
     analytics: AnalyticsService = Depends(get_analytics_service),
 ):
     """Return top property sales."""
-    return analytics.get_top_sales(limit=limit, search=search)
+    return analytics.get_top_sales(
+        limit=limit,
+        search=search,
+        property_type=property_type,
+    )
 
 
 @router.get(
@@ -47,10 +52,15 @@ def top_sales(
 def sales_by_locality(
     limit: int = 20,
     search: str | None = None,
+    property_type: str | None = None,
     analytics: AnalyticsService = Depends(get_analytics_service),
 ):
     """Return sales counts by locality."""
-    return analytics.get_sales_by_locality(limit=limit, search=search)
+    return analytics.get_sales_by_locality(
+        limit=limit,
+        search=search,
+        property_type=property_type,
+    )
 
 
 @router.get(
@@ -71,7 +81,11 @@ def average_price_by_locality(
 )
 def sales_by_property_type(
     search: str | None = None,
+    property_type: str | None = None,
     analytics: AnalyticsService = Depends(get_analytics_service),
 ):
     """Return sales counts by property type."""
-    return analytics.get_sales_by_property_type(search=search)
+    return analytics.get_sales_by_property_type(
+        search=search,
+        property_type=property_type,
+    )

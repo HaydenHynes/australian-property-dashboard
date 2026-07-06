@@ -1,15 +1,20 @@
 import { apiClient } from "./client";
-import type { PropertyTypeSales, SalesByLocality, TopSale } from "../types/property";
-
+import type {
+  PropertyTypeSales,
+  SalesByLocality,
+  TopSale,
+} from "../types/property";
 
 export async function getTopSales(
   limit = 10,
   search = "",
+  propertyType = "",
 ): Promise<TopSale[]> {
   const response = await apiClient.get<TopSale[]>("/analytics/top-sales", {
     params: {
       limit,
       search,
+      property_type: propertyType,
     },
   });
 
@@ -19,6 +24,7 @@ export async function getTopSales(
 export async function getSalesByLocality(
   limit = 10,
   search = "",
+  propertyType = "",
 ): Promise<SalesByLocality[]> {
   const response = await apiClient.get<SalesByLocality[]>(
     "/analytics/sales-by-locality",
@@ -26,6 +32,7 @@ export async function getSalesByLocality(
       params: {
         limit,
         search,
+        property_type: propertyType,
       },
     },
   );
@@ -35,12 +42,14 @@ export async function getSalesByLocality(
 
 export async function getSalesByPropertyType(
   search = "",
+  propertyType = "",
 ): Promise<PropertyTypeSales[]> {
   const response = await apiClient.get<PropertyTypeSales[]>(
     "/analytics/sales-by-property-type",
     {
       params: {
         search,
+        property_type: propertyType,
       },
     },
   );

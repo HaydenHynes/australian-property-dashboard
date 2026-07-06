@@ -26,7 +26,7 @@ export function TopSalesTable({ sales }: TopSalesTableProps) {
           <tbody>
             {sales.map((sale) => (
               <tr
-                key={`${sale.locality}-${sale.street_name}-${sale.house_number}`}
+                key={`${sale.locality}-${sale.street_name}-${sale.house_number}-${sale.contract_date}`}
                 className="
                   border-t
                   border-slate-700

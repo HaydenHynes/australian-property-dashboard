@@ -18,8 +18,12 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 )
 def dashboard_summary(
     search: str | None = None,
+    property_type: str | None = None,
     analytics: AnalyticsService = Depends(get_analytics_service),
 ) -> DashboardSummary:
     """Return dashboard summary metrics."""
     dashboard = DashboardService(analytics)
-    return dashboard.get_summary(search=search)
+    return dashboard.get_summary(
+        search=search,
+        property_type=property_type,
+    )

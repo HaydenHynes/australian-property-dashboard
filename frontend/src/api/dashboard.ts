@@ -3,11 +3,15 @@ import type { DashboardSummary } from "../types/dashboard";
 
 export async function getDashboardSummary(
   search = "",
+  propertyType = "",
 ): Promise<DashboardSummary> {
   const response = await apiClient.get<DashboardSummary>(
     "/dashboard/summary",
     {
-      params: { search },
+      params: {
+        search,
+        property_type: propertyType,
+      },
     },
   );
 

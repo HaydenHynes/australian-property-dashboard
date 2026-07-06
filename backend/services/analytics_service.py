@@ -15,11 +15,12 @@ from backend.models.analytics import (
 GET_TOTAL_SALES_SQL = """
 SELECT COUNT(*)
 FROM property_sales
-WHERE property_locality ILIKE %(search_pattern)s;
+WHERE property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s;
 """
 
 GET_TOP_SALES_SQL = """
-SELECT
+SELECT DISTINCT
     property_locality,
     property_street_name,
     property_house_number,
@@ -28,6 +29,7 @@ SELECT
 FROM property_sales
 WHERE purchase_price IS NOT NULL
   AND property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s
 ORDER BY purchase_price DESC
 LIMIT %(limit)s;
 """
@@ -38,6 +40,7 @@ SELECT
     COUNT(*) AS sales_count
 FROM property_sales
 WHERE property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s
 GROUP BY property_locality
 ORDER BY sales_count DESC
 LIMIT %(limit)s;
@@ -60,6 +63,7 @@ SELECT
     COUNT(*) AS sales_count
 FROM property_sales
 WHERE property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s
 GROUP BY nature_of_property
 ORDER BY sales_count DESC;
 """
@@ -68,21 +72,24 @@ GET_HIGHEST_SALE_PRICE_SQL = """
 SELECT MAX(purchase_price)
 FROM property_sales
 WHERE purchase_price IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s;
+  AND property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s;
 """
 
 GET_LOCALITY_COUNT_SQL = """
 SELECT COUNT(DISTINCT property_locality)
 FROM property_sales
 WHERE property_locality IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s;
+  AND property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s;
 """
 
 GET_AVERAGE_SALE_PRICE_SQL = """
 SELECT ROUND(AVG(purchase_price), 2)
 FROM property_sales
 WHERE purchase_price IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s;
+  AND property_locality ILIKE %(search_pattern)s
+  AND nature_of_property LIKE %(property_type_filter)s;
 """
 
 class AnalyticsService:
@@ -92,14 +99,22 @@ class AnalyticsService:
         """Initialize the analytics service."""
         self._db = db
 
-    def get_total_sales(self, search: str | None = None) -> int:
+    def get_total_sales(
+        self,
+        search: str | None = None,
+        property_type: str | None = None,
+    ) -> int:
         """Return the total number of property sales."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             result = conn.execute(
                 GET_TOTAL_SALES_SQL,
-                {"search_pattern": search_pattern},
+                {
+                    "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
+                },
             ).fetchone()
 
         return result[0]
@@ -108,9 +123,11 @@ class AnalyticsService:
         self,
         limit: int = 20,
         search: str | None = None,
+        property_type: str | None = None,
     ) -> list[TopSale]:
         """Return the highest property sales by purchase price."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             rows = conn.execute(
@@ -118,6 +135,7 @@ class AnalyticsService:
                 {
                     "limit": limit,
                     "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
                 },
             ).fetchall()
 
@@ -136,9 +154,11 @@ class AnalyticsService:
         self,
         limit: int = 20,
         search: str | None = None,
+        property_type: str | None = None,
     ) -> list[SalesByLocality]:
         """Return sales counts grouped by locality."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             rows = conn.execute(
@@ -146,6 +166,7 @@ class AnalyticsService:
                 {
                     "limit": limit,
                     "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
                 },
             ).fetchall()
 
@@ -179,14 +200,19 @@ class AnalyticsService:
     def get_sales_by_property_type(
         self,
         search: str | None = None,
+        property_type: str | None = None,
     ) -> list[PropertyTypeSales]:
         """Return sales counts grouped by property type."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             rows = conn.execute(
                 GET_SALES_BY_PROPERTY_TYPE_SQL,
-                {"search_pattern": search_pattern},
+                {
+                    "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
+                },
             ).fetchall()
 
         return [
@@ -197,38 +223,64 @@ class AnalyticsService:
             for row in rows
         ]
 
-    def get_highest_sale_price(self, search: str | None = None) -> int | None:
+    def get_highest_sale_price(
+        self,
+        search: str | None = None,
+        property_type: str | None = None,
+    ) -> int | None:
         """Return the highest sale price."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             result = conn.execute(
                 GET_HIGHEST_SALE_PRICE_SQL,
-                {"search_pattern": search_pattern},
+                {
+                    "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
+                },
             ).fetchone()
 
         return result[0]
 
-    def get_locality_count(self, search: str | None = None) -> int:
+
+    def get_locality_count(
+        self,
+        search: str | None = None,
+        property_type: str | None = None,
+    ) -> int:
         """Return the number of distinct localities."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             result = conn.execute(
                 GET_LOCALITY_COUNT_SQL,
-                {"search_pattern": search_pattern},
+                {
+                    "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
+                },
             ).fetchone()
 
         return result[0]
 
-    def get_average_sale_price(self, search: str | None = None):
+
+    def get_average_sale_price(
+        self,
+        search: str | None = None,
+        property_type: str | None = None,
+    ):
         """Return the average sale price."""
         search_pattern = self._build_search_pattern(search)
+        property_type_filter = self._build_property_type_filter(property_type)
 
         with self._db.connection() as conn:
             result = conn.execute(
                 GET_AVERAGE_SALE_PRICE_SQL,
-                {"search_pattern": search_pattern},
+                {
+                    "search_pattern": search_pattern,
+                    "property_type_filter": property_type_filter,
+                },
             ).fetchone()
 
         return result[0]
@@ -236,3 +288,7 @@ class AnalyticsService:
     def _build_search_pattern(self, search: str | None) -> str:
         """Build a SQL search pattern for locality filtering."""
         return f"%{search}%" if search else "%"
+    
+    def _build_property_type_filter(self, property_type: str | None) -> str:
+        """Build a SQL property type filter."""
+        return property_type if property_type else "%"
