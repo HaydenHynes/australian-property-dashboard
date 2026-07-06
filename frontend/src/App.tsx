@@ -13,6 +13,7 @@ import { DashboardHeader } from "./components/dashboard/DashboardHeader";
 import { SummarySection } from "./components/dashboard/SummarySection";
 import { ChartsSection } from "./components/dashboard/ChartsSection";
 import { DashboardToolbar } from "./components/dashboard/DashboardToolbar";
+import { useDebouncedValue } from "./hooks/useDebouncedValue";
 
 function App() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -21,6 +22,7 @@ function App() {
   const [salesByLocality, setSalesByLocality] = useState<SalesByLocality[]>([]);
   const [propertyTypeSales, setPropertyTypeSales] = useState<PropertyTypeSales[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
   const [topSalesLimit, setTopSalesLimit] = useState(10);
 
   useEffect(() => {
@@ -28,8 +30,8 @@ function App() {
       try {
         const [salesByLocalityData, propertyTypeSalesData] =
           await Promise.all([
-            getSalesByLocality(10, searchTerm),
-            getSalesByPropertyType(searchTerm),
+            getSalesByLocality(10, debouncedSearchTerm),
+            getSalesByPropertyType(debouncedSearchTerm),
           ]);
 
         setSalesByLocality(salesByLocalityData);
@@ -41,12 +43,12 @@ function App() {
     }
 
     loadChartsData();
-  }, [searchTerm]);
+  }, [debouncedSearchTerm]);
 
 useEffect(() => {
   async function loadSummaryData() {
     try {
-      const summaryData = await getDashboardSummary(searchTerm);
+      const summaryData = await getDashboardSummary(debouncedSearchTerm);
       setSummary(summaryData);
     } catch (error) {
       console.error(error);
@@ -55,12 +57,12 @@ useEffect(() => {
   }
 
   loadSummaryData();
-}, [searchTerm]);
+}, [debouncedSearchTerm]);
 
   useEffect(() => {
     async function loadTopSales() {
       try {
-        const topSalesData = await getTopSales(topSalesLimit, searchTerm);
+        const topSalesData = await getTopSales(topSalesLimit, debouncedSearchTerm);
         setTopSales(topSalesData);
       } catch (error) {
         console.error(error);
@@ -69,7 +71,7 @@ useEffect(() => {
     }
 
     loadTopSales();
-  }, [topSalesLimit, searchTerm]);
+  }, [topSalesLimit, debouncedSearchTerm]);
 
   if (error) {
     return <p className="status-message">{error}</p>;

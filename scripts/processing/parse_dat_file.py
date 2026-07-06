@@ -1,10 +1,12 @@
 """
-Parse B records from a NSW Valuer General .DAT file.
+Parse B records from NSW Valuer General property sales ZIP files.
 
-Field positions are based on the official NSW Valuer General
-Current Property Sales Data File format.
+Supports:
+- ZIP files containing .DAT files directly
+- Annual ZIP files containing nested weekly ZIP files
 """
 
+from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -15,8 +17,6 @@ NSW_ZIP_PATH = (
     / "nsw_valuer_general"
     / "nsw_property_sales_weekly_2026-01-05.zip"
 )
-
-TARGET_DAT_FILE = "214_SALES_DATA_NNME_05012026.DAT"
 
 RECORD_TYPE_INDEX = 0
 DISTRICT_CODE_INDEX = 1
@@ -76,49 +76,61 @@ def parse_b_record(line: str) -> dict[str, str]:
     }
 
 
-def parse_b_records_from_zip(zip_path: Path, dat_filename: str) -> list[dict[str, str]]:
-    """Parse all B records from a .DAT file inside a ZIP archive."""
+def parse_b_records_from_dat_bytes(dat_bytes: bytes) -> list[dict[str, str]]:
+    """Parse all B records from raw .DAT file bytes."""
     records = []
 
-    with ZipFile(zip_path, "r") as zip_file:
-        with zip_file.open(dat_filename) as dat_file:
-            for raw_line in dat_file:
-                line = raw_line.decode("utf-8", errors="replace").strip()
+    for raw_line in dat_bytes.splitlines():
+        line = raw_line.decode("utf-8", errors="replace").strip()
 
-                if not line.startswith("B;"):
-                    continue
+        if not line.startswith("B;"):
+            continue
 
-                records.append(parse_b_record(line))
+        records.append(parse_b_record(line))
 
     return records
 
-def get_dat_filenames(zip_path: Path) -> list[str]:
-    """Return all .DAT filenames from a ZIP archive."""
-    with ZipFile(zip_path, "r") as zip_file:
-        return [
-            filename
-            for filename in zip_file.namelist()
-            if filename.upper().endswith(".DAT")
-        ]
+
+def parse_b_records_from_open_zip(zip_file: ZipFile) -> list[dict[str, str]]:
+    """Parse B records from .DAT files inside an already-open ZIP file."""
+    records = []
+
+    for filename in zip_file.namelist():
+        if not filename.upper().endswith(".DAT"):
+            continue
+
+        dat_bytes = zip_file.read(filename)
+        records.extend(parse_b_records_from_dat_bytes(dat_bytes))
+
+    return records
+
 
 def parse_all_b_records_from_zip(zip_path: Path) -> list[dict[str, str]]:
-    """Parse B records from all .DAT files inside a ZIP archive."""
+    """Parse B records from a ZIP file, including nested ZIP files."""
     all_records = []
 
-    for dat_filename in get_dat_filenames(zip_path):
-        records = parse_b_records_from_zip(
-            zip_path=zip_path,
-            dat_filename=dat_filename,
-        )
-        all_records.extend(records)
+    with ZipFile(zip_path, "r") as outer_zip:
+        direct_dat_records = parse_b_records_from_open_zip(outer_zip)
+        all_records.extend(direct_dat_records)
+
+        for filename in outer_zip.namelist():
+            if not filename.lower().endswith(".zip"):
+                continue
+
+            nested_zip_bytes = outer_zip.read(filename)
+
+            with ZipFile(BytesIO(nested_zip_bytes), "r") as nested_zip:
+                nested_records = parse_b_records_from_open_zip(nested_zip)
+                all_records.extend(nested_records)
 
     return all_records
 
+
 def main() -> None:
-    """Parse and preview B records from all .DAT files in the ZIP archive."""
+    """Parse and preview B records from a property sales ZIP archive."""
     records = parse_all_b_records_from_zip(NSW_ZIP_PATH)
 
-    print(f"Parsed {len(records)} B records from all .DAT files.")
+    print(f"Parsed {len(records)} B records from ZIP archive.")
     print()
 
     for record in records[:5]:

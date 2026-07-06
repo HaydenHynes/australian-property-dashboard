@@ -1,7 +1,3 @@
-"""
-Dashboard response models.
-"""
-
 from dataclasses import dataclass
 
 
@@ -11,4 +7,5 @@ class DashboardSummary:
 
     total_sales: int
     highest_sale_price: int | None
+    average_sale_price: int | None
     locality_count: int

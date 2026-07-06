@@ -1,28 +1,30 @@
 """
-Inspect the contents of a ZIP file without extracting it.
+Inspect the contents of a NSW property sales ZIP file.
 """
 
-from zipfile import ZipFile
+import sys
+import zipfile
+from pathlib import Path
 
-from backend.core.config import RAW_DATA_DIR
-
-NSW_ZIP_PATH = (
-    RAW_DATA_DIR
-    / "nsw_valuer_general"
-    / "nsw_property_sales_weekly_2026-01-05.zip"
-)
+from scripts.processing.parse_dat_file import NSW_ZIP_PATH
 
 
-def main() -> None:
-    """List the contents of the NSW property sales ZIP file."""
-    with ZipFile(NSW_ZIP_PATH, "r") as zip_file:
-        print(f"Inspecting: {NSW_ZIP_PATH}")
-        print()
+def inspect_zip(zip_path: Path) -> None:
+    """Print file names and sizes inside a ZIP archive."""
+    print(f"Inspecting: {zip_path.resolve()}")
+    print()
 
-        for file_info in zip_file.infolist():
+    with zipfile.ZipFile(zip_path) as archive:
+        for file_info in archive.infolist():
             print(f"File: {file_info.filename}")
             print(f"Size: {file_info.file_size:,} bytes")
             print()
+
+
+def main() -> None:
+    """Inspect a ZIP file passed by argument, or the default weekly ZIP."""
+    zip_path = Path(sys.argv[1]) if len(sys.argv) > 1 else NSW_ZIP_PATH
+    inspect_zip(zip_path)
 
 
 if __name__ == "__main__":
