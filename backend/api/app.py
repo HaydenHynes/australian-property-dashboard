@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routers.analytics import router as analytics_router
 from backend.api.routers.dashboard import router as dashboard_router
+from backend.api.routers.investment import router as investment_router
+from backend.api.routers.rental import router as rental_router
 from backend.database.connection import Database
 
 
@@ -45,3 +47,5 @@ app.add_middleware(
 
 app.include_router(analytics_router)
 app.include_router(dashboard_router)
+app.include_router(rental_router)
+app.include_router(investment_router)

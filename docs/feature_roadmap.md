@@ -17,9 +17,9 @@
 ### Version 2.0
 
 - Rental Yield
-- Investment Score
+- Investment Score ✅
 - Affordability Score
-- Population Growth
+- Population Growth ✅
 - Infrastructure Projects
 - School Ratings
 - Crime Statistics
@@ -31,7 +31,7 @@
 
 - AI Investment Insights
 - Property Price Forecasting
-- Saved Watchlists
+- Saved Watchlists ✅
 - Investment Alerts
 - Personal Portfolio Tracking
 - Automatic Weekly Data Updates

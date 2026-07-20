@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect -- effects intentionally reset remote request state */
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import "./App.css";
 import {
   getAvailableYears,
@@ -14,6 +14,9 @@ import { ChartsSection } from "./components/dashboard/ChartsSection";
 import { DashboardHeader } from "./components/dashboard/DashboardHeader";
 import { DashboardToolbar } from "./components/dashboard/DashboardToolbar";
 import { MarketTrendChart } from "./components/dashboard/MarketTrendChart";
+import { RentalAnalysisSection } from "./components/dashboard/RentalAnalysisSection";
+import { RentalComparisonSection } from "./components/dashboard/RentalComparisonSection";
+import { RentalScreenerSection } from "./components/dashboard/RentalScreenerSection";
 import { SuburbProfileSection } from "./components/dashboard/SuburbProfileSection";
 import { SummarySection } from "./components/dashboard/SummarySection";
 import { TopSalesTable } from "./components/dashboard/TopSalesTable";
@@ -26,6 +29,12 @@ import type {
   SuburbProfile,
   TopSale,
 } from "./types/property";
+
+const InvestmentIntelligenceSection = lazy(() =>
+  import("./components/dashboard/InvestmentIntelligenceSection").then((module) => ({
+    default: module.InvestmentIntelligenceSection,
+  })),
+);
 
 function ErrorPanel({ message }: { message: string }) {
   return (
@@ -166,6 +175,13 @@ function App() {
       {salesError ? <ErrorPanel message={salesError} /> : (
         <TopSalesTable sales={topSales} loading={loadingTopSales} />
       )}
+
+      <RentalAnalysisSection locality={debouncedSearchTerm} />
+      <RentalComparisonSection />
+      <RentalScreenerSection />
+      <Suspense fallback={<div className="mt-14 h-80 animate-pulse rounded-xl border border-slate-700 bg-slate-900" />}>
+        <InvestmentIntelligenceSection locality={debouncedSearchTerm} />
+      </Suspense>
     </main>
   );
 }
