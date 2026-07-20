@@ -17,6 +17,7 @@ __pycache__/
 
 # Python cache
 .pytest_cache/
+.ruff_cache/
 
 # Jupyter
 .ipynb_checkpoints/

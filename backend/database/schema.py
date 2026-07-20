@@ -35,9 +35,26 @@ CREATE TABLE IF NOT EXISTS property_sales (
 );
 """
 
+CREATE_ANALYTICS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_property_sales_contract_date
+    ON property_sales (contract_date);
+CREATE INDEX IF NOT EXISTS idx_property_sales_locality
+    ON property_sales (property_locality);
+CREATE INDEX IF NOT EXISTS idx_property_sales_nature_date
+    ON property_sales (nature_of_property, contract_date);
+CREATE INDEX IF NOT EXISTS idx_property_sales_market_lookup
+    ON property_sales (
+        property_locality,
+        nature_of_property,
+        contract_date,
+        purchase_price
+    );
+"""
+
 
 def create_tables(db: Database) -> None:
     """Create database tables."""
     with db.connection() as conn:
         conn.execute(CREATE_PROPERTY_SALES_TABLE_SQL)
+        conn.execute(CREATE_ANALYTICS_INDEXES_SQL)
         conn.commit()

@@ -1,25 +1,76 @@
-"""
-Analytics service.
-
-Provides reusable analytics queries for property sales data.
-"""
+# ruff: noqa: E501
+"""Investment-focused analytics over NSW property sales."""
 
 from backend.database.connection import Database
 from backend.models.analytics import (
-    AveragePriceByLocality,
+    MarketTrendPoint,
     PropertyTypeSales,
     SalesByLocality,
+    SuburbProfile,
     TopSale,
 )
 
-GET_TOTAL_SALES_SQL = """
+# Conservative analytics rule. Raw rows remain untouched. The dashboard includes only
+# full-interest, uncoded transactions with enough information for market analysis.
+MARKET_SALE_FILTER_SQL = """
+purchase_price BETWEEN 50000 AND 20000000
+AND contract_date IS NOT NULL
+AND contract_date >= DATE '2001-01-01'
+AND contract_date <= CURRENT_DATE
+AND property_locality IS NOT NULL
+AND COALESCE(TRIM(sale_code), '') = ''
+AND COALESCE(NULLIF(TRIM(percent_interest_of_sale), ''), '0') IN ('0', '100')
+"""
+
+FILTERS_SQL = f"""
+{MARKET_SALE_FILTER_SQL}
+AND property_locality ILIKE %(search_pattern)s
+AND nature_of_property LIKE %(property_type_filter)s
+AND (
+    CAST(%(contract_year)s AS integer) IS NULL
+    OR contract_date >= MAKE_DATE(CAST(%(contract_year)s AS integer), 1, 1)
+       AND contract_date < MAKE_DATE(CAST(%(contract_year)s AS integer) + 1, 1, 1)
+)
+"""
+
+GET_SUMMARY_SQL = f"""
+WITH filtered AS (
+    SELECT purchase_price, contract_date, property_locality
+    FROM property_sales
+    WHERE {FILTERS_SQL}
+), latest AS (
+    SELECT MAX(contract_date) AS as_of_date FROM filtered
+)
+SELECT
+    COUNT(*),
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price),
+    COUNT(DISTINCT property_locality),
+    MAX(contract_date),
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+        FILTER (
+            WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '12 months'
+        ),
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+        FILTER (
+            WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '24 months'
+              AND contract_date <= (SELECT as_of_date FROM latest) - INTERVAL '12 months'
+        )
+FROM filtered;
+"""
+
+GET_RAW_MATCHING_COUNT_SQL = """
 SELECT COUNT(*)
 FROM property_sales
 WHERE property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s;
+  AND nature_of_property LIKE %(property_type_filter)s
+  AND (
+      CAST(%(contract_year)s AS integer) IS NULL
+      OR contract_date >= MAKE_DATE(CAST(%(contract_year)s AS integer), 1, 1)
+         AND contract_date < MAKE_DATE(CAST(%(contract_year)s AS integer) + 1, 1, 1)
+  );
 """
 
-GET_TOP_SALES_SQL = """
+GET_RECENT_SALES_SQL = f"""
 SELECT DISTINCT
     property_locality,
     property_street_name,
@@ -27,268 +78,237 @@ SELECT DISTINCT
     purchase_price,
     contract_date
 FROM property_sales
-WHERE purchase_price IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s
-ORDER BY purchase_price DESC
+WHERE {FILTERS_SQL}
+ORDER BY contract_date DESC, purchase_price DESC
 LIMIT %(limit)s;
 """
 
-GET_SALES_BY_LOCALITY_SQL = """
-SELECT
-    property_locality,
-    COUNT(*) AS sales_count
+GET_SALES_BY_LOCALITY_SQL = f"""
+SELECT property_locality, COUNT(*) AS sales_count
 FROM property_sales
-WHERE property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s
+WHERE {FILTERS_SQL}
 GROUP BY property_locality
 ORDER BY sales_count DESC
 LIMIT %(limit)s;
 """
 
-GET_AVERAGE_PRICE_BY_LOCALITY_SQL = """
-SELECT
-    property_locality,
-    ROUND(AVG(purchase_price), 2) AS average_purchase_price
+GET_SALES_BY_PROPERTY_TYPE_SQL = f"""
+SELECT nature_of_property, COUNT(*) AS sales_count
 FROM property_sales
-WHERE purchase_price IS NOT NULL
-GROUP BY property_locality
-ORDER BY average_purchase_price DESC
-LIMIT %(limit)s;
-"""
-
-GET_SALES_BY_PROPERTY_TYPE_SQL = """
-SELECT
-    nature_of_property,
-    COUNT(*) AS sales_count
-FROM property_sales
-WHERE property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s
+WHERE {FILTERS_SQL}
 GROUP BY nature_of_property
 ORDER BY sales_count DESC;
 """
 
-GET_HIGHEST_SALE_PRICE_SQL = """
-SELECT MAX(purchase_price)
+GET_MARKET_TREND_SQL = f"""
+SELECT
+    DATE_TRUNC('quarter', contract_date)::date AS period,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price),
+    COUNT(*)
 FROM property_sales
-WHERE purchase_price IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s;
+WHERE {FILTERS_SQL}
+GROUP BY DATE_TRUNC('quarter', contract_date)
+HAVING COUNT(*) >= 5
+ORDER BY period;
 """
 
-GET_LOCALITY_COUNT_SQL = """
-SELECT COUNT(DISTINCT property_locality)
-FROM property_sales
-WHERE property_locality IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s;
+GET_SUBURB_PROFILE_SQL = f"""
+WITH market AS (
+    SELECT purchase_price, contract_date
+    FROM property_sales
+    WHERE {MARKET_SALE_FILTER_SQL}
+      AND property_locality ILIKE %(exact_locality)s
+      AND nature_of_property LIKE %(property_type_filter)s
+), latest AS (
+    SELECT MAX(contract_date) AS as_of_date FROM market
+), medians AS (
+    SELECT
+        COUNT(*) FILTER (
+            WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '12 months'
+        ) AS sales_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+            FILTER (
+                WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '12 months'
+            ) AS current_median,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+            FILTER (
+                WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '24 months'
+                  AND contract_date <= (SELECT as_of_date FROM latest) - INTERVAL '12 months'
+            ) AS median_1y,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+            FILTER (
+                WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '48 months'
+                  AND contract_date <= (SELECT as_of_date FROM latest) - INTERVAL '36 months'
+            ) AS median_3y,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY purchase_price)
+            FILTER (
+                WHERE contract_date > (SELECT as_of_date FROM latest) - INTERVAL '72 months'
+                  AND contract_date <= (SELECT as_of_date FROM latest) - INTERVAL '60 months'
+            ) AS median_5y
+    FROM market
+)
+SELECT
+    sales_count,
+    current_median,
+    (SELECT as_of_date FROM latest),
+    CASE WHEN median_1y > 0
+         THEN (current_median / median_1y - 1) * 100 END,
+    CASE WHEN median_3y > 0
+         THEN (POWER(current_median / median_3y, 1.0 / 3) - 1) * 100 END,
+    CASE WHEN median_5y > 0
+         THEN (POWER(current_median / median_5y, 1.0 / 5) - 1) * 100 END
+FROM medians;
 """
 
-GET_AVERAGE_SALE_PRICE_SQL = """
-SELECT ROUND(AVG(purchase_price), 2)
+GET_AVAILABLE_YEARS_SQL = f"""
+SELECT DISTINCT EXTRACT(YEAR FROM contract_date)::int AS year
 FROM property_sales
-WHERE purchase_price IS NOT NULL
-  AND property_locality ILIKE %(search_pattern)s
-  AND nature_of_property LIKE %(property_type_filter)s;
+WHERE {MARKET_SALE_FILTER_SQL}
+ORDER BY year DESC;
 """
+
 
 class AnalyticsService:
-    """Provides analytics queries over property sales."""
+    """Provides reusable, quality-filtered property market analytics."""
 
     def __init__(self, db: Database) -> None:
-        """Initialize the analytics service."""
         self._db = db
 
-    def get_total_sales(
+    def get_summary_metrics(
         self,
         search: str | None = None,
         property_type: str | None = None,
-    ) -> int:
-        """Return the total number of property sales."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        contract_year: int | None = None,
+    ) -> dict:
+        """Return headline metrics and transparent exclusion counts."""
+        params = self._build_params(search, property_type, contract_year)
         with self._db.connection() as conn:
-            result = conn.execute(
-                GET_TOTAL_SALES_SQL,
-                {
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchone()
+            row = conn.execute(GET_SUMMARY_SQL, params).fetchone()
+            raw_count = conn.execute(GET_RAW_MATCHING_COUNT_SQL, params).fetchone()[0]
 
-        return result[0]
+        median = self._as_float(row[1])
+        current_median = self._as_float(row[4])
+        previous_median = self._as_float(row[5])
+        growth = self._growth(current_median, previous_median)
+        return {
+            "total_sales": row[0],
+            "median_sale_price": median,
+            "locality_count": row[2],
+            "data_as_of": row[3],
+            "annual_growth_pct": growth,
+            "excluded_sales": max(raw_count - row[0], 0),
+        }
 
-    def get_top_sales(
+    def get_total_sales(self, **filters) -> int:
+        return self.get_summary_metrics(**filters)["total_sales"]
+
+    def get_median_sale_price(self, **filters) -> float | None:
+        return self.get_summary_metrics(**filters)["median_sale_price"]
+
+    def get_locality_count(self, **filters) -> int:
+        return self.get_summary_metrics(**filters)["locality_count"]
+
+    def get_recent_sales(
         self,
         limit: int = 20,
         search: str | None = None,
         property_type: str | None = None,
+        contract_year: int | None = None,
     ) -> list[TopSale]:
-        """Return the highest property sales by purchase price."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        """Return the latest comparable market sales."""
+        params = self._build_params(search, property_type, contract_year)
+        params["limit"] = limit
         with self._db.connection() as conn:
-            rows = conn.execute(
-                GET_TOP_SALES_SQL,
-                {
-                    "limit": limit,
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchall()
+            rows = conn.execute(GET_RECENT_SALES_SQL, params).fetchall()
+        return [TopSale(*row) for row in rows]
 
-        return [
-            TopSale(
-                locality=row[0],
-                street_name=row[1],
-                house_number=row[2],
-                purchase_price=row[3],
-                contract_date=row[4],
-            )
-            for row in rows
-        ]
+    # Kept for compatibility with the existing endpoint and frontend name.
+    get_top_sales = get_recent_sales
 
     def get_sales_by_locality(
         self,
         limit: int = 20,
         search: str | None = None,
         property_type: str | None = None,
+        contract_year: int | None = None,
     ) -> list[SalesByLocality]:
-        """Return sales counts grouped by locality."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        params = self._build_params(search, property_type, contract_year)
+        params["limit"] = limit
         with self._db.connection() as conn:
-            rows = conn.execute(
-                GET_SALES_BY_LOCALITY_SQL,
-                {
-                    "limit": limit,
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchall()
-
-        return [
-            SalesByLocality(
-                locality=row[0],
-                sales_count=row[1],
-            )
-            for row in rows
-        ]
-
-    def get_average_price_by_locality(
-        self,
-        limit: int = 20,
-    ) -> list[AveragePriceByLocality]:
-        """Return average purchase price grouped by locality."""
-        with self._db.connection() as conn:
-            rows = conn.execute(
-                GET_AVERAGE_PRICE_BY_LOCALITY_SQL,
-                {"limit": limit},
-            ).fetchall()
-
-        return [
-            AveragePriceByLocality(
-                locality=row[0],
-                average_purchase_price=row[1],
-            )
-            for row in rows
-        ]
+            rows = conn.execute(GET_SALES_BY_LOCALITY_SQL, params).fetchall()
+        return [SalesByLocality(*row) for row in rows]
 
     def get_sales_by_property_type(
         self,
         search: str | None = None,
         property_type: str | None = None,
+        contract_year: int | None = None,
     ) -> list[PropertyTypeSales]:
-        """Return sales counts grouped by property type."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        params = self._build_params(search, property_type, contract_year)
         with self._db.connection() as conn:
-            rows = conn.execute(
-                GET_SALES_BY_PROPERTY_TYPE_SQL,
-                {
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchall()
+            rows = conn.execute(GET_SALES_BY_PROPERTY_TYPE_SQL, params).fetchall()
+        return [PropertyTypeSales(*row) for row in rows]
 
-        return [
-            PropertyTypeSales(
-                property_type=row[0],
-                sales_count=row[1],
-            )
-            for row in rows
-        ]
-
-    def get_highest_sale_price(
+    def get_market_trend(
         self,
         search: str | None = None,
         property_type: str | None = None,
-    ) -> int | None:
-        """Return the highest sale price."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        contract_year: int | None = None,
+    ) -> list[MarketTrendPoint]:
+        params = self._build_params(search, property_type, contract_year)
         with self._db.connection() as conn:
-            result = conn.execute(
-                GET_HIGHEST_SALE_PRICE_SQL,
-                {
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchone()
+            rows = conn.execute(GET_MARKET_TREND_SQL, params).fetchall()
+        return [MarketTrendPoint(row[0], self._as_float(row[1]), row[2]) for row in rows]
 
-        return result[0]
-
-
-    def get_locality_count(
+    def get_suburb_profile(
         self,
-        search: str | None = None,
-        property_type: str | None = None,
-    ) -> int:
-        """Return the number of distinct localities."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
-
+        locality: str,
+        property_type: str | None = "R",
+    ) -> SuburbProfile:
+        """Return trailing-period growth and liquidity metrics for one locality."""
+        params = {
+            "exact_locality": locality.strip(),
+            "property_type_filter": self._build_property_type_filter(property_type),
+        }
         with self._db.connection() as conn:
-            result = conn.execute(
-                GET_LOCALITY_COUNT_SQL,
-                {
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchone()
+            row = conn.execute(GET_SUBURB_PROFILE_SQL, params).fetchone()
+        return SuburbProfile(
+            locality=locality.strip().upper(),
+            median_sale_price=self._as_float(row[1]),
+            sales_count_12m=row[0],
+            data_as_of=row[2],
+            growth_1y_pct=self._as_float(row[3]),
+            growth_3y_annualised_pct=self._as_float(row[4]),
+            growth_5y_annualised_pct=self._as_float(row[5]),
+        )
 
-        return result[0]
+    def get_available_years(self) -> list[int]:
+        with self._db.connection() as conn:
+            rows = conn.execute(GET_AVAILABLE_YEARS_SQL).fetchall()
+        return [row[0] for row in rows]
 
-
-    def get_average_sale_price(
+    def _build_params(
         self,
-        search: str | None = None,
-        property_type: str | None = None,
-    ):
-        """Return the average sale price."""
-        search_pattern = self._build_search_pattern(search)
-        property_type_filter = self._build_property_type_filter(property_type)
+        search: str | None,
+        property_type: str | None,
+        contract_year: int | None,
+    ) -> dict:
+        return {
+            "search_pattern": f"%{search.strip()}%" if search else "%",
+            "property_type_filter": self._build_property_type_filter(property_type),
+            "contract_year": contract_year,
+        }
 
-        with self._db.connection() as conn:
-            result = conn.execute(
-                GET_AVERAGE_SALE_PRICE_SQL,
-                {
-                    "search_pattern": search_pattern,
-                    "property_type_filter": property_type_filter,
-                },
-            ).fetchone()
-
-        return result[0]
-
-    def _build_search_pattern(self, search: str | None) -> str:
-        """Build a SQL search pattern for locality filtering."""
-        return f"%{search}%" if search else "%"
-    
-    def _build_property_type_filter(self, property_type: str | None) -> str:
-        """Build a SQL property type filter."""
+    @staticmethod
+    def _build_property_type_filter(property_type: str | None) -> str:
         return property_type if property_type else "%"
+
+    @staticmethod
+    def _as_float(value) -> float | None:
+        return float(value) if value is not None else None
+
+    @staticmethod
+    def _growth(current: float | None, previous: float | None) -> float | None:
+        if current is None or previous in (None, 0):
+            return None
+        return (current / previous - 1) * 100

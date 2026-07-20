@@ -10,10 +10,10 @@ export function TopSalesTable({ sales, loading }: TopSalesTableProps) {
   return (
     <section className="mt-10">
       <h2 className="mb-4 text-2xl font-semibold">
-        Top Property Sales
+        Recent Comparable Sales
       </h2>
       {loading && (
-        <div className="overflow-hidden rounded-xl border border-slate-700">
+        <div className="overflow-x-auto rounded-xl border border-slate-700">
           <div className="h-12 animate-pulse bg-slate-800" />
           {[1, 2, 3, 4, 5].map((item) => (
             <div

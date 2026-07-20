@@ -21,3 +21,9 @@ export function formatDate(value: string | null): string {
     year: "numeric",
   }).format(new Date(value));
 }
+
+export function formatPercent(value: number | null): string {
+  if (value === null) return "N/A";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}

@@ -43,3 +43,27 @@ class PropertyTypeSalesResponse(BaseModel):
 
     property_type: str | None
     sales_count: int
+
+
+class MarketTrendPointResponse(BaseModel):
+    """Quarterly median sale price and sales volume."""
+
+    period: date
+    median_sale_price: float | None
+    sales_count: int
+
+
+class SuburbProfileResponse(BaseModel):
+    """Investor-oriented suburb profile."""
+
+    locality: str
+    median_sale_price: float | None
+    sales_count_12m: int
+    data_as_of: date | None
+    growth_1y_pct: float | None
+    growth_3y_annualised_pct: float | None
+    growth_5y_annualised_pct: float | None
+
+
+class AvailableYearsResponse(BaseModel):
+    years: list[int]

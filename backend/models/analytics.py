@@ -40,3 +40,25 @@ class PropertyTypeSales:
 
     property_type: str | None
     sales_count: int
+
+
+@dataclass(frozen=True)
+class MarketTrendPoint:
+    """Quarterly median price and market liquidity."""
+
+    period: date
+    median_sale_price: float | None
+    sales_count: int
+
+
+@dataclass(frozen=True)
+class SuburbProfile:
+    """Investor-oriented metrics for a single locality."""
+
+    locality: str
+    median_sale_price: float | None
+    sales_count_12m: int
+    data_as_of: date | None
+    growth_1y_pct: float | None
+    growth_3y_annualised_pct: float | None
+    growth_5y_annualised_pct: float | None

@@ -7,6 +7,8 @@ interface DashboardToolbarProps {
   onPropertyTypeChange: (value: string) => void;
   contractYear: string;
   onContractYearChange: (value: string) => void;
+  availableYears: number[];
+  onClear: () => void;
 }
 
 export function DashboardToolbar({
@@ -18,6 +20,8 @@ export function DashboardToolbar({
   onPropertyTypeChange,
   contractYear,
   onContractYearChange,
+  availableYears,
+  onClear,
 }: DashboardToolbarProps) {
   return (
     <section className="mt-8 flex flex-col gap-4 rounded-xl border border-slate-700 bg-slate-900 p-4 md:flex-row md:items-center md:justify-between">
@@ -72,14 +76,18 @@ export function DashboardToolbar({
           className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-slate-100 outline-none focus:border-sky-400 md:w-36"
         >
           <option value="">All</option>
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="2024">2024</option>
-          <option value="2023">2023</option>
-          <option value="2022">2022</option>
-          <option value="2021">2021</option>
+          {availableYears.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
         </select>
       </div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-auto rounded-lg border border-slate-600 px-4 py-2 font-medium text-slate-200 transition hover:border-sky-400 hover:text-white"
+      >
+        Clear filters
+      </button>
     </section>
   );
 }
